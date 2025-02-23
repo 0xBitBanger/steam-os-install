@@ -9,7 +9,7 @@
 
 set -eu
 
-DISK=/dev/sda
+DISK=""
 DISK_SUFFIX=""
 DOPARTVERIFY=1
 writePartitionTable=1
