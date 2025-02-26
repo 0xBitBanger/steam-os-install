@@ -46,34 +46,48 @@ FS_HOME=8
 
 # Update script to prompt user to select disk instead of only using nvme0n1
 prompt_for_disk() {
-    disk=""
-    disks=$(lsblk -o KNAME,TYPE,SIZE,MODEL | grep disk)
-    echo "Available disks for installation:"
-    echo "$disks"
-    echo
-    read -p "Enter disk to install SteamOS: " disk
+  disk=""
+  disks=$(lsblk -o KNAME,TYPE,SIZE,MODEL | grep disk)
+  echo "Available disks for installation:"
+  echo "$disks"
+  echo
+  read -p "Enter disk to install SteamOS: " disk
 
-    if ! test -e /dev/$disk ; then
-        echo "$disk does not exist"
-        exit 1
-    else
-        parts=$(lsblk -o KNAME,TYPE,SIZE,FSTYPE,PARTLABEL | grep part | grep $disk)
-        echo "$disk contains following data:"
-        echo "$parts"
-        read -p "Are you sure you want to continue? [y/n] " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]
-        then
-            echo "Starting SteamOS install ..."
-            DISK="/dev/$disk"
-            # NVMe partitions traditionally use p
-            if [[ $disk == "nvme*"]]; then
-                DISK_SUFFIX="p"
-            fi
-        else
-            exit 0
+  if ! test -e /dev/$disk ; then
+    echo "$disk does not exist"
+    exit 1
+  else
+    parts=$(lsblk -o KNAME,TYPE,SIZE,FSTYPE,PARTLABEL | grep part | grep $disk)
+    echo "$disk contains following data:"
+    echo "$parts"
+    read -p "Are you sure you want to continue? [y/n] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "Starting SteamOS install ..."
+        DISK="/dev/$disk"
+        # NVMe partitions traditionally use p
+        if [[ $disk == "nvme*" ]]; then
+          DISK_SUFFIX="p"
         fi
+    else
+        exit 0
     fi
+fi
+}
+
+# The recovery image may have auto mounted some partitons so unmount them if so
+unmount_parts() {
+  # Get the mounts for the specific disk
+  mounts=$(cat /proc/mounts | grep $DISK | awk '{print $2}')
+
+  # Loop through each mount point and unmount it
+  for mount in $mounts
+  do
+    echo "Unmounting $mount"
+    umount $mount
+  done
+
+  echo 
 }
 
 
@@ -278,6 +292,7 @@ repair_steps()
 }
 
 prompt_for_disk
+unmount_parts
 prompt_step "Reimage Steam Deck" "This action will reimage the Steam Deck.\nThis will permanently destroy all data on your Steam Deck and reinstall SteamOS.\n\nThis cannot be undone.\n\nChoose Proceed only if you wish to clear and reimage this device."
 writePartitionTable=1
 writeOS=1
